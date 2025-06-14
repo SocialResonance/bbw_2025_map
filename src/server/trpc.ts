@@ -8,7 +8,7 @@
  * @see https://trpc.io/docs/v11/procedures
  */
 
-import { initTRPC } from '@trpc/server';
+import { initTRPC, TRPCError } from '@trpc/server';
 import { transformer } from '~/utils/transformer';
 import type { Context } from './context';
 
@@ -36,6 +36,36 @@ export const router = t.router;
  * @see https://trpc.io/docs/v11/procedures
  **/
 export const publicProcedure = t.procedure;
+
+const isAuthed = t.middleware(({ next, ctx }) => {
+  if (!ctx.session?.user?.email) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+    });
+  }
+  return next({
+    ctx: {
+      session: ctx.session,
+    },
+  });
+});
+
+export const protectedProcedure = t.procedure.use(isAuthed);
+
+const isAdmin = t.middleware(({ next, ctx }) => {
+  if (ctx.session?.user?.role !== 'ADMIN') {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+    });
+  }
+  return next({
+    ctx: {
+      session: ctx.session,
+    },
+  });
+});
+
+export const adminProcedure = t.procedure.use(isAdmin);
 
 /**
  * Merge multiple routers together
